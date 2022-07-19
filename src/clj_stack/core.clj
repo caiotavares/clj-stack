@@ -1,37 +1,31 @@
 (ns clj-stack.core
-  (:require [clojure.pprint :as pprint]))
+  (:require [clojure.tools.trace :as trace]))
 
-(defmacro defn [& fn]
-  `(clojure.core/defn ~@fn))
+(defn analyze [s symbols]
+  (cond
+    (symbol? s)
+    (swap! symbols conj (resolve s))
 
-(def *args* (atom {}))
+    (seqable? s)
+    (doseq [s* s]
+      (analyze s* symbols))))
+
+(defmacro inspect [& fn-decl]
+  (let [symbols (atom [])]
+    (doseq [s fn-decl]
+      (analyze s symbols))
+    (prn (remove nil? @symbols)))
+  `(clojure.core/defn ~@fn-decl))
+
+(defn do-side-effect [args])
 
 (defn function-2 [args]
-  {:status 200 :body args})
+  (do-side-effect args))
 
-(defn function-1-1 [args]
-  (let [fn-symbol (-> (Thread/currentThread)
-                      .getStackTrace
-                      second
-                      .getClassName
-                      clojure.repl/demunge
-                      symbol)
-        arglist (-> fn-symbol find-var meta :arglists)]
-    (swap! *args* merge {(keyword fn-symbol) {:arglist       arglist
-                                              :provided-args [args]}})
-    (+ 1 1)))
+(macroexpand-1 '(inspect function-3 [args]
+                  (let [banana (function-2 args)
+                        maca (clojure.string/capitalize "minusculo")])
+                  {:status 200 :body args}))
 
-
-(function-1-1 {:banana 1})
-
-(@*args*)
-
-;(macroexpand-1 '(with-probe))
-
-
-(defn function-1 [args]
-  (let [opa (function-1-1 {:args1-1 args})]
-    (mapv #(print (.toString %)) (.getStackTrace (Thread/currentThread)))
-    (function-2 {:args2 opa})))
-
-(function-1 {:banana 1})
+(defn function [args]
+  (function-2 args))
