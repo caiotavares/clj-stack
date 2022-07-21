@@ -2,6 +2,10 @@
   (:require [clojure.tools.trace :as trace])
   (:import (java.io LineNumberReader InputStreamReader PushbackReader FileInputStream)))
 
+(defn namespaced [s]
+  (let [ns (-> s resolve meta :ns str)]
+    (keyword ns (str s))))
+
 (defn matches-namespace? [ns symbol]
   (some? (re-matches (re-pattern (str ns ".?"))
                      (-> symbol meta :ns str))))
@@ -31,25 +35,38 @@
        (filter (partial matches-namespace? ns))
        (mapv trace-vars*)))
 
-(defn form->var [s symbols]
+(defn form->var [layer s symbols]
   (cond
     (symbol? s)
-    (swap! symbols conj (resolve s))
+    (when-let [v (resolve s)]
+      (swap! symbols update-in [layer] conj v))
 
     (seqable? s)
     (doseq [s* s]
-      (form->var s* symbols))))
+      (form->var layer s* symbols))))
 
-(defn extract-called-functions [fn-decl]
-  (let [vars (atom [])]
+#_(trace-vars "clj-stack.core" @vars)
+
+(defn extract-called-functions [root fn-decl]
+  (let [vars (atom {})]
+    ;; This is the root function
     (doseq [s fn-decl]
-      (form->var s vars))
-    (map source-fn (filter (partial matches-namespace? "clj-stack.core") @vars))
-    (trace-vars "clj-stack.core" @vars)))
+      (form->var root s vars))
+    ;; From now on, we need to filter called symbols from the root level
+    (loop [layer 1]
+      (nu/tap (str "LAYER - " layer))
+      (nu/tap @vars)
+      (let [next-level (map source-fn (nu/tap (filter (partial matches-namespace? "clj-stack.core") (get @vars (dec layer)))))]
+        (nu/tap "NEXT-LEVEL")
+        (nu/tap next-level)
+        (when (seq next-level)
+          (doseq [s next-level]
+            (form->var layer s vars))
+          (nu/tap @vars))))))
 
 (defmacro deftraced [name & fn-decl]
-  (extract-called-functions fn-decl)
-  `(clojure.core/defn ~name ~@fn-decl))
+  `(clojure.core/defn ~name ~@fn-decl)
+  (extract-called-functions (namespaced name) fn-decl))
 
 (defn do-side-effect [args]
   {:received-args args})
