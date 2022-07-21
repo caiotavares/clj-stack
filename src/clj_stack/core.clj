@@ -2,39 +2,55 @@
   (:require [clojure.tools.trace :as trace]))
 
 (defn matches-namespace? [ns symbol]
-  (= ns
-     (-> symbol meta :ns str)))
+  (some? (re-matches (re-pattern (str "[" ns "].+"))
+                     (-> symbol meta :ns str))))
 
-(defn clean-symbols [ns symbols]
+(defn trace-vars* [v]
+  (nu/tap v)
+  (trace/trace-vars v))
+
+(defn trace-vars [ns symbols]
   (->> symbols
        (remove nil?)
-       (filter (partial matches-namespace? ns))))
+       (filter (partial matches-namespace? ns))
+       (mapv trace-vars*)))
 
-(defn analyze [s symbols]
+(defn form->var [s symbols]
   (cond
     (symbol? s)
     (swap! symbols conj (resolve s))
 
     (seqable? s)
     (doseq [s* s]
-      (analyze s* symbols))))
+      (form->var s* symbols))))
 
 (defmacro inspect [& fn-decl]
-  (let [symbols (atom [])]
+  (let [vars (atom [])]
     (doseq [s fn-decl]
-      (analyze s symbols))
-    (prn (clean-symbols "clj-stack.core" @symbols)))
+      (form->var s vars))
+    (trace-vars "clj-stack.core" @vars))
   `(clojure.core/defn ~@fn-decl))
 
-(defn do-side-effect [args])
+(defn do-side-effect [args]
+  {:received-args args})
 
-(defn function-2 [args]
+(inspect function-2 [args]
   (do-side-effect args))
 
-(macroexpand-1 '(inspect function-3 [args]
-                  (let [banana (function-2 args)
-                        maca (clojure.string/capitalize "minusculo")])
-                  {:status 200 :body args}))
+(defn function-1 [args]
+  {:function-1 args})
 
-(defn function [args]
-  (function-2 args))
+(inspect function-3 [args]
+         (let [banana (function-2 args)
+               abacate (function-1 args)
+               maca   (clojure.string/capitalize "minusculo")])
+         {:status 200 :body args})
+
+(inspect function-4 [args]
+         (function-2 args))
+
+(function-4 {:banana 1})
+
+(function-3 {:banana 1})
+
+
