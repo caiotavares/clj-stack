@@ -31,8 +31,6 @@
        (filter (partial matches-namespace? ns))
        (mapv trace-vars*)))
 
-(source-fn #'trace-vars)
-
 (defn form->var [s symbols]
   (cond
     (symbol? s)
@@ -42,11 +40,15 @@
     (doseq [s* s]
       (form->var s* symbols))))
 
-(defmacro deftraced [name & fn-decl]
+(defn extract-called-functions [fn-decl]
   (let [vars (atom [])]
-    (doseq [s (cons name fn-decl)]
+    (doseq [s fn-decl]
       (form->var s vars))
-    (trace-vars "clj-stack.core" @vars))
+    (map source-fn (filter (partial matches-namespace? "clj-stack.core") @vars))
+    (trace-vars "clj-stack.core" @vars)))
+
+(defmacro deftraced [name & fn-decl]
+  (extract-called-functions fn-decl)
   `(clojure.core/defn ~name ~@fn-decl))
 
 (defn do-side-effect [args]
