@@ -87,7 +87,19 @@
   (expand-children root ns)
   (trace-stack))
 
-(defmacro deftraced [fn-name & fn-decl]
+(defmacro deftraced
+  "Replacement for defn, but annotates the static call stack from this fn
+  onwards based on a namespace filter. When called, will annotate the in/out
+  of each fn into the *stack* atom dynamic var.
+
+  In order to customize the namespace filter, add the :namespace key in the
+  metadata map.
+
+  Ex:
+  (deftrace ^{:namespace \"clj-stack.core\"} my-fn [args]
+    (do-something args))
+  "
+  [fn-name & fn-decl]
   (reset! *stack* {})
   (let [doc-string (if (string? (first fn-decl)) (first fn-decl) "")
         fn-form (if (string? (first fn-decl)) (rest fn-decl) fn-decl)
