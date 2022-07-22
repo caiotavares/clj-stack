@@ -2,12 +2,12 @@
   (:require [clojure.tools.trace :as trace])
   (:import (java.io LineNumberReader InputStreamReader PushbackReader FileInputStream)))
 
-(def stack (atom {}))
+(def ^:dynamic *stack* (atom {}))
 
-(defn var->namespace [v]
+(defn ^:private var->namespace [v]
   (-> v meta :ns ns-name str))
 
-(defn namespaced
+(defn ^:private namespaced
   ([s]
    (when (symbol? s)
      (namespaced (var->namespace (resolve s)) s))
@@ -16,11 +16,11 @@
   ([ns s]
    (keyword (str ns) (str s))))
 
-(defn matches-namespace? [ns var]
+(defn ^:private matches-namespace? [ns var]
   (some? (re-matches (re-pattern (str ns ".?"))
                      (-> var meta :ns str))))
 
-(defn extract-source [v]
+(defn ^:private extract-source [v]
   "Stolen from clojure.repl/source-fn and modified to provide a reader unnatached from the RT"
   (when-let [^String filepath (:file (meta v))]
     (when-let [stream (FileInputStream. filepath)]
@@ -36,83 +36,52 @@
             (read {} (PushbackReader. pbr)))
           (read-string (str text)))))))
 
-(defn trace-vars* [v]
+(defn ^:private trace-vars* [v]
   (trace/trace-vars v))
 
-(defn form->var [layer expr ns]
+(defn ^:private trace-stack []
+  (->> @*stack*
+       vals
+       (map :children)
+       flatten
+       (mapv trace-vars*)))
+
+(defn ^:private form->var [layer expr ns]
   "Extracts called symbols from a fn definition sexp"
   (cond
     (symbol? expr)
     (when-let [v (resolve expr)]
       (when (and (not (= (namespaced v) layer))
                  (matches-namespace? ns v))
-        (swap! stack update-in [layer :children] conj v)))
+        (swap! *stack* update-in [layer :children] conj v)))
 
     (seqable? expr)
     (doseq [s* expr]
       (form->var layer s* ns))))
 
-(comment
-  {:clj-stack.core/function-3     {:input    nil
-                                   :output   nil
-                                   :children '(:clj-stack.core/function-2 :clj-stack.core/function-1)}
-   :clj-stack.core/function-2     {:input    nil
-                                   :output   nil
-                                   :children '(:clj-stack.core/do-side-effect)}
-   :clj-stack.core/do-side-effect {:input    nil
-                                   :output   nil
-                                   :children '(:clj-stack.core/final-function :clj-stack.core/final-final-2)}
-   :clj-stack.core/final-function {:input    nil
-                                   :output   nil
-                                   :children '()}
-   :clj-stack.core/final-final-2  {:input    nil
-                                   :output   nil
-                                   :children '()}
-   :clj-stack.core/function-1     {:input    nil
-                                   :output   nil
-                                   :children '()}})
-
-(defn has-children? [layer result]
+(defn ^:private has-children? [layer result]
   (-> result layer :children seq some?))
 
-(defn expand-children [layer ns]
-  (doseq [child (:children (layer @stack))]
-    ;; Register child in the map
-    (swap! stack update (namespaced child) assoc :children '())
-    ;; Expand children from this child
+(defn ^:private expand-children [layer ns]
+  (doseq [child (:children (layer @*stack*))]
+    (swap! *stack* update (namespaced child) assoc :children '())
     (form->var (namespaced child) (extract-source child) ns)
-    (when (has-children? layer @stack)
-      (doseq [subchild (:children (layer @stack))]
+    (when (has-children? layer @*stack*)
+      (doseq [subchild (:children (layer @*stack*))]
         (expand-children (namespaced subchild) ns)))))
 
-(defn extract-called-functions [root fn-decl ns]
+(defn ^:private extract-called-functions [root fn-decl ns]
   (form->var root fn-decl ns)
   (expand-children root ns)
-  (clojure.pprint/pprint @stack))
+  (trace-stack))
 
 (defmacro deftraced [fn-name & fn-decl]
-  (extract-called-functions (namespaced *ns* fn-name) fn-decl "clj-stack.core")
-  `(clojure.core/defn ~fn-name ~@fn-decl))
-
-(defn final-final-2 [args])
-
-(defn final-function [args]
-  "do nothing")
-
-(defn do-side-effect [args]
-  (final-function {:received-args args})
-  (final-final-2 args))
-
-(defn function-1 [args]
-  {:function-1 args})
-
-(defn function-2 [args]
-  (do-side-effect args))
-
-(deftraced function-3 [args]
-  (let [banana  (function-2 args)
-        abacate (function-1 args)
-        maca    (clojure.string/capitalize "minusculo")])
-  {:status 200 :body args})
-
-(function-3 {:banana 1})
+  (let [doc-string (if (string? (first fn-decl)) (first fn-decl) "")
+        fn-form    (if (string? (first fn-decl)) (rest fn-decl) fn-decl)
+        filter-ns  (or (:namespace (meta fn-name)) (str *ns*))]
+    (extract-called-functions (namespaced *ns* fn-name) fn-decl filter-ns)
+    `(do
+       (declare ~fn-name)
+       (let [f# (fn ~@fn-form)]
+         (defn ~fn-name ~doc-string [& args#]
+           (trace/trace-fn-call '~fn-name f# args#))))))

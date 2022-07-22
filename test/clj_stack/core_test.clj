@@ -2,6 +2,27 @@
   (:require [clojure.test :refer :all]
             [clj-stack.core :refer :all]))
 
-(deftest a-test
-  (testing "FIXME, I fail."
-    (is (= 0 1))))
+(defn layer-3-function-2 [args])
+
+(defn layer-3-function-1 [args]
+  "do nothing")
+
+(defn layer-2-function-1 [args]
+  (layer-3-function-1 {:received-args args})
+  (layer-3-function-2 args))
+
+(defn layer-1-function-2 [args]
+  {:function-1 args})
+
+(defn layer-1-function-1 [args]
+  (layer-2-function-1 args))
+
+(deftraced entrypoint [args]
+  (let [banana  (layer-1-function-1 args)
+        abacate (layer-1-function-2 args)
+        maca    (clojure.string/capitalize "minusculo")])
+  {:status 200 :body args})
+
+(entrypoint {:banana 1})
+
+(clojure.pprint/pprint @*stack*)
