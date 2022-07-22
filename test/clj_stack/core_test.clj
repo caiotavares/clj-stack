@@ -1,6 +1,6 @@
 (ns clj-stack.core-test
   (:require [clojure.test :refer :all]
-            [clj-stack.core :refer :all]))
+            [clj-stack.core :refer [deftraced *stack*]]))
 
 (defn layer-3-function-2 [args])
 

@@ -17,8 +17,8 @@
    (keyword (str ns) (str s))))
 
 (defn ^:private matches-namespace? [ns var]
-  (some? (re-matches (re-pattern (str ns ".?"))
-                     (-> var meta :ns str))))
+  (some? (re-find (re-pattern (str "^" ns))
+                  (-> var meta :ns str))))
 
 (defn ^:private extract-source [v]
   "Stolen from clojure.repl/source-fn and modified to provide a reader unnatached from the RT"
@@ -83,5 +83,5 @@
     `(do
        (declare ~fn-name)
        (let [f# (fn ~@fn-form)]
-         (defn ~fn-name ~doc-string [& args#]
+         (defn ^:dynamic ~fn-name ~doc-string [& args#]
            (trace/trace-fn-call '~fn-name f# args#))))))
