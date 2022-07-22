@@ -2,6 +2,8 @@
   (:require [clojure.tools.trace :as trace])
   (:import (java.io LineNumberReader InputStreamReader PushbackReader FileInputStream)))
 
+(def stack (atom {}))
+
 (defn namespaced-symbol
   ([s]
    (namespaced-symbol (-> s resolve meta :ns str) s))
@@ -36,23 +38,18 @@
 (defn trace-vars* [v]
   (trace/trace-vars v))
 
-(defn trace-vars [ns symbols]
-  (->> symbols
-       (remove nil?)
-       (filter (partial matches-namespace? ns))
-       (mapv trace-vars*)))
-
-(defn form->var [layer expr result ns]
+(defn form->var [layer expr ns]
+  "Extracts called symbols from a fn definition sexp"
   (cond
     (symbol? expr)
     (when-let [v (resolve expr)]
       (when (and (not (= (namespaced-var v) layer))
                  (matches-namespace? ns v))
-        (swap! result update-in [layer :children] conj v)))
+        (swap! stack update-in [layer :children] conj v)))
 
     (seqable? expr)
     (doseq [s* expr]
-      (form->var layer s* result ns))))
+      (form->var layer s* ns))))
 
 (comment
   {:clj-stack.core/function-3     {:input    nil
@@ -77,23 +74,20 @@
 (defn has-children? [layer result]
   (-> result layer :children seq some?))
 
-(defn expand-children [layer result ns]
-  (doseq [child (:children (layer @result))]
+(defn expand-children [layer ns]
+  (doseq [child (:children (layer @stack))]
     ;; Register child in the map
-    (swap! result update (namespaced-var child) assoc :children '())
+    (swap! stack update (namespaced-var child) assoc :children '())
     ;; Expand children from this child
-    (form->var (namespaced-var child) (extract-source child) result ns)
-    (when (has-children? layer @result)
-      (doseq [subchild (:children (layer @result))]
-        (expand-children (namespaced-var subchild) result ns)))))
+    (form->var (namespaced-var child) (extract-source child) ns)
+    (when (has-children? layer @stack)
+      (doseq [subchild (:children (layer @stack))]
+        (expand-children (namespaced-var subchild) ns)))))
 
 (defn extract-called-functions [root fn-decl ns]
-  (let [result (atom {})]
-    ;; This is the root function
-    (form->var root fn-decl result ns)
-    ;; From now on, we need to filter called symbols from the root level
-    (expand-children root result ns)
-    (nu/tap @result)))
+  (form->var root fn-decl ns)
+  (expand-children root ns)
+  (clojure.pprint/pprint @stack))
 
 (defmacro deftraced [fn-name & fn-decl]
   (extract-called-functions (namespaced-symbol (str *ns*) fn-name) fn-decl "clj-stack.core")
