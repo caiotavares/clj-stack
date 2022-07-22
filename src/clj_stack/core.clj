@@ -4,16 +4,17 @@
 
 (def stack (atom {}))
 
-(defn namespaced-symbol
-  ([s]
-   (namespaced-symbol (-> s resolve meta :ns str) s))
-  ([ns s]
-   (keyword ns (str s))))
+(defn var->namespace [v]
+  (-> v meta :ns ns-name str))
 
-(defn namespaced-var [v]
-  (let [ns      (-> v meta :ns ns-name str)
-        fn-name (-> v meta :name str)]
-    (keyword ns fn-name)))
+(defn namespaced
+  ([s]
+   (when (symbol? s)
+     (namespaced (var->namespace (resolve s)) s))
+   (when (var? s)
+     (namespaced (var->namespace s) (-> s meta :name))))
+  ([ns s]
+   (keyword (str ns) (str s))))
 
 (defn matches-namespace? [ns var]
   (some? (re-matches (re-pattern (str ns ".?"))
@@ -43,7 +44,7 @@
   (cond
     (symbol? expr)
     (when-let [v (resolve expr)]
-      (when (and (not (= (namespaced-var v) layer))
+      (when (and (not (= (namespaced v) layer))
                  (matches-namespace? ns v))
         (swap! stack update-in [layer :children] conj v)))
 
@@ -77,12 +78,12 @@
 (defn expand-children [layer ns]
   (doseq [child (:children (layer @stack))]
     ;; Register child in the map
-    (swap! stack update (namespaced-var child) assoc :children '())
+    (swap! stack update (namespaced child) assoc :children '())
     ;; Expand children from this child
-    (form->var (namespaced-var child) (extract-source child) ns)
+    (form->var (namespaced child) (extract-source child) ns)
     (when (has-children? layer @stack)
       (doseq [subchild (:children (layer @stack))]
-        (expand-children (namespaced-var subchild) ns)))))
+        (expand-children (namespaced subchild) ns)))))
 
 (defn extract-called-functions [root fn-decl ns]
   (form->var root fn-decl ns)
@@ -90,7 +91,7 @@
   (clojure.pprint/pprint @stack))
 
 (defmacro deftraced [fn-name & fn-decl]
-  (extract-called-functions (namespaced-symbol (str *ns*) fn-name) fn-decl "clj-stack.core")
+  (extract-called-functions (namespaced *ns* fn-name) fn-decl "clj-stack.core")
   `(clojure.core/defn ~fn-name ~@fn-decl))
 
 (defn final-final-2 [args])
