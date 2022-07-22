@@ -22,7 +22,3 @@
         abacate (layer-1-function-2 args)
         maca    (clojure.string/capitalize "minusculo")])
   {:status 200 :body args})
-
-(entrypoint {:banana 1})
-
-(clojure.pprint/pprint @*stack*)

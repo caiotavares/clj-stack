@@ -1,20 +1,31 @@
 (ns clj-stack.core
-  (:require [clojure.tools.trace :as trace])
-  (:import (java.io LineNumberReader InputStreamReader PushbackReader FileInputStream)))
+  (:import (java.io LineNumberReader InputStreamReader PushbackReader FileInputStream)
+           (clojure.lang Var)))
 
 (def ^:dynamic *stack* (atom {}))
 
+(defn tap [f]
+  (print "TAP => ")
+  (print f)
+  (println "")
+  f)
+
 (defn ^:private var->namespace [v]
-  (-> v meta :ns ns-name str))
+  (-> v meta :ns ns-name))
 
 (defn ^:private namespaced
-  ([s]
-   (when (symbol? s)
-     (namespaced (var->namespace (resolve s)) s))
-   (when (var? s)
-     (namespaced (var->namespace s) (-> s meta :name))))
+  ([^Var v]
+   (when (var? v)
+     (namespaced (var->namespace v) (-> v meta :name))))
   ([ns s]
    (keyword (str ns) (str s))))
+
+(defn traced [fn-name fn args]
+  (let [layer (namespaced (if (symbol? fn-name) (resolve fn-name) fn-name))]
+    (swap! *stack* update layer assoc :input args)
+    (let [result (apply fn args)]
+      (swap! *stack* update layer assoc :output result)
+      result)))
 
 (defn ^:private matches-namespace? [ns var]
   (some? (re-find (re-pattern (str "^" ns))
@@ -27,17 +38,18 @@
       (with-open [reader (LineNumberReader. (InputStreamReader. stream))]
         (dotimes [_ (dec (:line (meta v)))] (.readLine reader))
         (let [text (StringBuilder.)
-              pbr  (proxy [PushbackReader] [reader]
-                     (read [] (let [i (proxy-super read)]
-                                (.append text (char i))
-                                i)))]
+              pbr (proxy [PushbackReader] [reader]
+                    (read [] (let [i (proxy-super read)]
+                               (.append text (char i))
+                               i)))]
           (if (= :unknown *read-eval*)
             (throw (IllegalStateException. "Unable to read source while *read-eval* is :unknown."))
             (read {} (PushbackReader. pbr)))
           (read-string (str text)))))))
 
 (defn ^:private trace-vars* [v]
-  (trace/trace-vars v))
+  (alter-var-root v #(fn tracing-wrapper [& args]
+                       (traced v % args))))
 
 (defn ^:private trace-stack []
   (->> @*stack*
@@ -46,7 +58,7 @@
        flatten
        (mapv trace-vars*)))
 
-(defn ^:private form->var [layer expr ns]
+(defn ^:private expression->var [layer expr ns]
   "Extracts called symbols from a fn definition sexp"
   (cond
     (symbol? expr)
@@ -57,7 +69,7 @@
 
     (seqable? expr)
     (doseq [s* expr]
-      (form->var layer s* ns))))
+      (expression->var layer s* ns))))
 
 (defn ^:private has-children? [layer result]
   (-> result layer :children seq some?))
@@ -65,23 +77,24 @@
 (defn ^:private expand-children [layer ns]
   (doseq [child (:children (layer @*stack*))]
     (swap! *stack* update (namespaced child) assoc :children '())
-    (form->var (namespaced child) (extract-source child) ns)
+    (expression->var (namespaced child) (extract-source child) ns)
     (when (has-children? layer @*stack*)
       (doseq [subchild (:children (layer @*stack*))]
         (expand-children (namespaced subchild) ns)))))
 
-(defn ^:private extract-called-functions [root fn-decl ns]
-  (form->var root fn-decl ns)
+(defn ^:private compose-stack [root fn-decl ns]
+  (expression->var root fn-decl ns)
   (expand-children root ns)
   (trace-stack))
 
 (defmacro deftraced [fn-name & fn-decl]
+  (reset! *stack* {})
   (let [doc-string (if (string? (first fn-decl)) (first fn-decl) "")
-        fn-form    (if (string? (first fn-decl)) (rest fn-decl) fn-decl)
-        filter-ns  (or (:namespace (meta fn-name)) (str *ns*))]
-    (extract-called-functions (namespaced *ns* fn-name) fn-decl filter-ns)
+        fn-form (if (string? (first fn-decl)) (rest fn-decl) fn-decl)
+        filter-ns (or (:namespace (meta fn-name)) (str *ns*))]
+    (compose-stack (namespaced *ns* fn-name) fn-decl filter-ns)
     `(do
        (declare ~fn-name)
        (let [f# (fn ~@fn-form)]
          (defn ^:dynamic ~fn-name ~doc-string [& args#]
-           (trace/trace-fn-call '~fn-name f# args#))))))
+           (traced '~fn-name f# args#))))))
