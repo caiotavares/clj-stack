@@ -1,6 +1,7 @@
 (ns clj-stack.core-test
   (:require [clojure.test :refer :all]
-            [clj-stack.core :refer [deftraced *stack*]]))
+            [clj-stack.core :refer [deftraced]]
+            [clj-stack.state :as state]))
 
 (defn layer-3-function-2 [args])
 
@@ -24,4 +25,4 @@
   {:status 200 :body args})
 
 (entrypoint 1)
-(deref *stack*)
+state/*stack*
