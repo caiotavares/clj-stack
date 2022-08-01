@@ -89,8 +89,8 @@
     (doseq [s* expr]
       (expression->var node s* ns))))
 
-(defn ^:private has-children? [node result]
-  (-> result node :children seq some?))
+(defn ^:private has-children? [node stack]
+  (-> stack node :children seq some?))
 
 (defn ^:private expand-children [node level ns]
   "Fetches the fn source and goes through every symbol, registering nodes in the call tree"
