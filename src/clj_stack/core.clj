@@ -1,14 +1,31 @@
 (ns clj-stack.core
+  (:require [clojure.tools.trace]
+            [clj-stack.print :as print])
   (:import (java.io LineNumberReader InputStreamReader PushbackReader FileInputStream)
            (clojure.lang Var)))
 
 (def ^:dynamic *stack* (atom {}))
 
-(defn tap [f]
-  (print "TAP => ")
-  (print f)
-  (println "")
-  f)
+(defn ^:private new-node [level]
+  {:children '()
+   :input    nil
+   :output   nil
+   :level    level})
+
+(defn ^:private register-node! [node level]
+  (swap! *stack* assoc-in [node] (new-node level)))
+
+(defn ^:private register-call!
+  [node var-name]
+  (swap! *stack* update-in [node :children] conj var-name))
+
+(defn ^:private register-input! [node args]
+  (print/input! *stack* node args)
+  (swap! *stack* update node assoc :input args))
+
+(defn ^:private register-output! [node result]
+  (print/output! *stack* node result)
+  (swap! *stack* update node assoc :output result))
 
 (defn ^:private var->namespace [v]
   (-> v meta :ns ns-name))
@@ -21,10 +38,10 @@
    (keyword (str ns) (str s))))
 
 (defn traced [fn-name fn args]
-  (let [layer (namespaced (if (symbol? fn-name) (resolve fn-name) fn-name))]
-    (swap! *stack* update layer assoc :input args)
+  (let [node (namespaced (if (symbol? fn-name) (resolve fn-name) fn-name))]
+    (register-input! node args)
     (let [result (apply fn args)]
-      (swap! *stack* update layer assoc :output result)
+      (register-output! node result)
       result)))
 
 (defn ^:private matches-namespace? [ns var]
@@ -32,7 +49,7 @@
                   (-> var meta :ns str))))
 
 (defn ^:private extract-source [v]
-  "Stolen from clojure.repl/source-fn and modified to provide a reader unnatached from the RT"
+  "Based on clojure.repl/source-fn and modified to provide a reader unnatached from the RT (which doesn't work for some reason)"
   (when-let [^String filepath (:file (meta v))]
     (when-let [stream (FileInputStream. filepath)]
       (with-open [reader (LineNumberReader. (InputStreamReader. stream))]
@@ -52,39 +69,42 @@
                        (traced v % args))))
 
 (defn ^:private trace-stack []
-  (->> @*stack*
+  (->> *stack*
+       deref
        vals
        (map :children)
        flatten
        (mapv trace-vars*)))
 
-(defn ^:private expression->var [layer expr ns]
+(defn ^:private expression->var [node expr ns]
   "Extracts called symbols from a fn definition sexp"
   (cond
     (symbol? expr)
     (when-let [v (resolve expr)]
-      (when (and (not (= (namespaced v) layer))
+      (when (and (not (= (namespaced v) node))
                  (matches-namespace? ns v))
-        (swap! *stack* update-in [layer :children] conj v)))
+        (register-call! node v)))
 
     (seqable? expr)
     (doseq [s* expr]
-      (expression->var layer s* ns))))
+      (expression->var node s* ns))))
 
-(defn ^:private has-children? [layer result]
-  (-> result layer :children seq some?))
+(defn ^:private has-children? [node result]
+  (-> result node :children seq some?))
 
-(defn ^:private expand-children [layer ns]
-  (doseq [child (:children (layer @*stack*))]
-    (swap! *stack* update (namespaced child) assoc :children '())
+(defn ^:private expand-children [node level ns]
+  "Fetches the fn source and goes through every symbol, registering nodes in the call tree"
+  (doseq [child (:children (node @*stack*))]
+    (register-node! (namespaced child) level)
     (expression->var (namespaced child) (extract-source child) ns)
-    (when (has-children? layer @*stack*)
-      (doseq [subchild (:children (layer @*stack*))]
-        (expand-children (namespaced subchild) ns)))))
+    (when (has-children? node @*stack*)
+      (doseq [subchild (:children (node @*stack*))]
+        (expand-children (namespaced subchild) (inc level) ns)))))
 
-(defn ^:private compose-stack [root fn-decl ns]
+(defn ^:private compose-stack [root level fn-decl ns]
+  (register-node! root level)
   (expression->var root fn-decl ns)
-  (expand-children root ns)
+  (expand-children root (inc level) ns)
   (trace-stack))
 
 (defmacro deftraced
@@ -104,7 +124,7 @@
   (let [doc-string (if (string? (first fn-decl)) (first fn-decl) "")
         fn-form (if (string? (first fn-decl)) (rest fn-decl) fn-decl)
         filter-ns (or (:namespace (meta fn-name)) (str *ns*))]
-    (compose-stack (namespaced *ns* fn-name) fn-decl filter-ns)
+    (compose-stack (namespaced *ns* fn-name) 0 fn-decl filter-ns)
     `(do
        (declare ~fn-name)
        (let [f# (fn ~@fn-form)]
