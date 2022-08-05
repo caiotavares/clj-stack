@@ -7,6 +7,7 @@
   {:children '()
    :input    nil
    :output   nil
+   :throw    nil
    :level    level})
 
 (defn clear-stack! []
@@ -39,9 +40,14 @@
   (swap! *stack* update-in [node :children] conj var-name))
 
 (defn register-input! [node args]
-  (print/input! *stack* node args)
+  (print/input! (stack) node args)
   (swap! *stack* update node assoc :input args))
 
 (defn register-output! [node result]
-  (print/output! *stack* node result)
+  (print/output! (stack) node result)
   (swap! *stack* update node assoc :output result))
+
+(defn register-exception! [node ex]
+  (let [exception-data (ex-data ex)]
+    (print/exception! (stack) node exception-data)
+    (swap! *stack* update node assoc :throw exception-data)))

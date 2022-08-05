@@ -6,11 +6,11 @@
 (defn layer-3-function-2 [args])
 
 (defn layer-3-function-1 [args]
-  "do nothing")
+  (throw (ex-info "OPA" {:reason "DEU RUIM"})))
 
 (defn layer-2-function-1 [args]
-  (layer-3-function-1 {:received-args args})
-  (layer-3-function-2 args))
+  (layer-3-function-2 args)
+  (layer-3-function-1 {:received-args args}))
 
 (defn layer-1-function-2 [args]
   {:function-1 args})
