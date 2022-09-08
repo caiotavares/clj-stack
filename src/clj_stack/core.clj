@@ -2,7 +2,8 @@
   (:require [clojure.tools.trace]
             [clj-stack.state :as state]
             [clj-stack.utils :as utils]
-            [clj-stack.tracing :as tracing])
+            [clj-stack.tracing :as tracing]
+            [clojure.string :as str])
   (:import (java.io LineNumberReader InputStreamReader PushbackReader FileInputStream)))
 
 (defn ^:private extract-source [v]
@@ -65,7 +66,7 @@
   (state/clear-stack!)
   (let [doc-string (if (string? (first fn-decl)) (first fn-decl) "")
         fn-form    (if (string? (first fn-decl)) (rest fn-decl) fn-decl)
-        filter-ns  (or (:namespace (meta fn-name)) (str *ns*))]
+        filter-ns  (or (:namespace (meta fn-name)) (-> *ns* str (str/split #"\.") first))]
     (traverse-call-tree (utils/namespaced *ns* fn-name) 0 fn-decl filter-ns)
     `(do
        (declare ~fn-name)
