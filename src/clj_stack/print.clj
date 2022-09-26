@@ -1,16 +1,9 @@
 (ns clj-stack.print)
 
-(def regular
-  "\033[0m")
-
-(def green
-  "\033[38;2;106;168;79;1;m")
-
-(def red
-  "\033[38;2;153;0;0;1;m")
-
-(def blue
-  "\033[38;2;11;83;148;1;m")
+(def regular "\033[0m")
+(def green "\033[38;2;106;168;79;1;m")
+(def red "\033[38;2;153;0;0;1;m")
+(def blue "\033[38;2;11;83;148;1;m")
 
 (defn colored [color text]
   (str color text regular))
