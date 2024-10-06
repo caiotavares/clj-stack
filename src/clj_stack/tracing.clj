@@ -3,8 +3,9 @@
             [clj-stack.utils :as utils])
   (:import (clojure.lang ExceptionInfo)))
 
-(defn traced! [fn-name fn args]
+(defn traced!
   "Register In/Out for this fn in the call tree and prints to stdout"
+  [fn-name fn args]
   (let [var-name (if (symbol? fn-name) (resolve fn-name) fn-name)
         node     (utils/namespaced var-name)]
     (state/register-input! node args)
