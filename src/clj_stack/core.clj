@@ -1,14 +1,15 @@
 (ns clj-stack.core
-  (:require [clojure.tools.trace]
-            [clj-stack.state :as state]
-            [clj-stack.utils :as utils]
+  (:require [clj-stack.state :as state]
             [clj-stack.tracing :as tracing]
-            [clojure.string :as str])
-  (:import (java.io LineNumberReader InputStreamReader PushbackReader FileInputStream)))
+            [clj-stack.utils :as utils]
+            [clojure.string :as str]
+            [clojure.tools.trace])
+  (:import (java.io FileInputStream InputStreamReader LineNumberReader PushbackReader)))
 
 (defn ^:private extract-source [v]
   "Based on clojure.repl/source-fn and modified to provide a reader unnatached from the RT (which doesn't work for some reason)"
   (when-let [^String filepath (:file (meta v))]
+    ;; TODO: Fix filepath absolute reference, right now all namespaces must be loaded to the REPL beforehand
     (when-let [stream (FileInputStream. filepath)]
       (with-open [reader (LineNumberReader. (InputStreamReader. stream))]
         (dotimes [_ (dec (:line (meta v)))] (.readLine reader))
@@ -22,33 +23,26 @@
             (read {} (PushbackReader. pbr)))
           (read-string (str text)))))))
 
-(defn ^:private expression->children [node expr ns]
+(defn ^:private expression->children [node ns expr filter]
   "Extracts called symbols from a fn definition sexp"
   (cond
     (symbol? expr)
-    (when-let [v (resolve expr)]
+    (when-let [v (ns-resolve ns expr)]
       (when (and (not (= (utils/namespaced v) node))
-                 (utils/matches-namespace? ns v))
+                 (utils/matches-namespace? filter v))
         (state/register-child! node v)))
 
     (seqable? expr)
     (doseq [s* expr]
-      (expression->children node s* ns))))
+      (expression->children node ns s* filter))))
 
-(defn ^:private expand-children [node level ns]
+(defn ^:private traverse-call-tree [level node ns fn-decl filter]
   "Fetches each child fn source and goes through every symbol, registering nodes in the call tree"
-  (doseq [child (state/children node)]
-    (state/register-node! (utils/namespaced child) level)
-    (expression->children (utils/namespaced child) (extract-source child) ns)
-    (when (state/has-children? node)
-      (doseq [grandchild (state/children node)]
-        (expand-children (utils/namespaced grandchild) (inc level) ns)))))
-
-(defn ^:private traverse-call-tree [root level fn-decl ns]
-  (state/register-node! root level)
-  (expression->children root fn-decl ns)
-  (expand-children root (inc level) ns)
-  (tracing/trace-stack))
+  (state/register-node! node level)
+  (expression->children node ns fn-decl filter)
+  (when-let [children (seq (state/children node))]
+    (doseq [child children]
+      (traverse-call-tree (inc level) (utils/namespaced child) (:ns (meta child)) (extract-source child) filter))))
 
 (defmacro deftraced
   "Replacement for defn, but annotates the static call stack from this fn
@@ -67,7 +61,8 @@
   (let [doc-string (if (string? (first fn-decl)) (first fn-decl) "")
         fn-form    (if (string? (first fn-decl)) (rest fn-decl) fn-decl)
         filter-ns  (or (:namespace (meta fn-name)) (-> *ns* str (str/split #"\.") first))]
-    (traverse-call-tree (utils/namespaced *ns* fn-name) 0 fn-decl filter-ns)
+    (traverse-call-tree 0 (utils/namespaced *ns* fn-name) *ns* fn-decl filter-ns)
+    (tracing/trace-stack)
     `(do
        (declare ~fn-name)
        (let [f# (fn ~@fn-form)]

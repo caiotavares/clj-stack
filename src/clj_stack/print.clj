@@ -24,9 +24,3 @@
 
 (defn exception! [stack node ex]
   (println red (indent stack node) "THROW <== " regular node " " ex))
-
-(defn tap [f]
-  (print "TAP => ")
-  (print f)
-  (println "")
-  f)

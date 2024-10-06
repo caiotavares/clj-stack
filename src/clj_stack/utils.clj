@@ -14,3 +14,9 @@
 (defn matches-namespace? [ns var]
   (some? (re-find (re-pattern (str "^" ns))
                   (-> var meta :ns str))))
+
+(defmacro tap [v]
+  `(do
+     (println "Tapping =>" '~v)
+     (clojure.pprint/pprint ~v)
+     ~v))
