@@ -1,5 +1,4 @@
-(ns clj-stack.state
-  (:require [clj-stack.print :as print]))
+(ns clj-stack.state)
 
 (def ^:dynamic *stack* (atom {}))
 
@@ -19,12 +18,8 @@
 (defn children [node]
   (-> (stack)
       node
-      :children))
-
-(defn has-children? [node]
-  (-> (children node)
-      seq
-      some?))
+      :children
+      seq))
 
 (defn flat-stack []
   (->> (stack)
@@ -40,14 +35,11 @@
   (swap! *stack* update-in [node :children] conj var-name))
 
 (defn register-input! [node args]
-  (print/input! (stack) node args)
   (swap! *stack* update node assoc :input args))
 
 (defn register-output! [node result]
-  (print/output! (stack) node result)
   (swap! *stack* update node assoc :output result))
 
 (defn register-exception! [node ex]
   (let [exception-data (ex-data ex)]
-    (print/exception! (stack) node exception-data)
     (swap! *stack* update node assoc :throw exception-data)))

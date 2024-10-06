@@ -2,12 +2,12 @@
   (:import (clojure.lang Var)))
 
 (defn var->namespace [v]
-  (-> v meta :ns ns-name))
+  (-> v meta :ns))
 
 (defn namespaced
   ([^Var v]
    (when (var? v)
-     (namespaced (var->namespace v) (-> v meta :name))))
+     (namespaced (-> v var->namespace ns-name) (-> v meta :name))))
   ([ns s]
    (keyword (str ns) (str s))))
 
