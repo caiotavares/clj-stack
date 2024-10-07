@@ -29,6 +29,7 @@
 (defn ^:private expression->children
   "Extracts called symbols from a fn definition sexp"
   [node ns expr filter]
+  ;; TODO: Needs to handle schemas from plumatic as well
   (cond
     (symbol? expr)
     (when-let [v (ns-resolve ns expr)]

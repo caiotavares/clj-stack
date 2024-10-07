@@ -10,7 +10,4 @@
         maca    (clojure.string/capitalize "minusculo")])
   {:status 200 :body args})
 
-(->> (map (fn [[k v]] [k (:level v)]) (deref state/*stack*))
-     (filter (fn [[k v]] (= 0 v))))
-
 (entrypoint 1)
