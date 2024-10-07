@@ -8,6 +8,7 @@
    :input    nil
    :output   nil
    :throw    nil
+   :schema   nil
    :level    level})
 
 (defn ^:private new-child [var]
@@ -43,6 +44,10 @@
 (defn register-child!
   [var node]
   (swap! *stack* update-in [node :children] conj (new-child var)))
+
+(defn register-schema!
+  [schema node]
+  (swap! *stack* update node assoc :schema schema))
 
 (defn register-input! [node args]
   (swap! *stack* update node assoc :input args))

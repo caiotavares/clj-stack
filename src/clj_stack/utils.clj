@@ -23,3 +23,6 @@
 
 (defn self? [var node]
   (= (namespaced var) node))
+
+(defn schema? [v]
+  (contains? (meta (var-get v)) :skeleton))

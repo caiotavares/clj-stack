@@ -29,12 +29,16 @@
 (defn ^:private expression->children
   "Extracts called symbols from a fn definition sexp"
   [node ns expr filter]
-  ;; TODO: Needs to handle schemas from plumatic as well
   (cond
     (symbol? expr)
     (when-let [v (ns-resolve ns expr)]
-      (when (and (not (utils/self? v node))
-                 (utils/matches-filter? v filter))
+      (cond
+        (utils/schema? v)
+        ()
+
+        (and (fn? (var-get v))
+             (not (utils/self? v node))
+             (utils/matches-filter? v filter))
         (state/register-child! v node)))
 
     (seqable? expr)
@@ -82,6 +86,7 @@
   (state/clear-stack!)
   (let [level  0
         ns     (-> v meta :ns)
+        schema (-> v meta :schema)
         filter (-> ns str (str/split #"\.") first)]
     (traverse-call-tree level (utils/namespaced v) ns (extract-source v) filter)
     @state/*stack*))
