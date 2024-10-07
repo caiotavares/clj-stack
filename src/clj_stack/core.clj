@@ -1,7 +1,6 @@
 (ns clj-stack.core
   (:require [clj-stack.state :as state]
             [clj-stack.tracing :as tracing]
-            [clojure.repl :as repl]
             [clj-stack.utils :as utils]
             [clojure.string :as str]
             [clojure.tools.trace])
@@ -13,6 +12,7 @@
   [v]
   (when-let [^String filepath (:file (meta v))]
     ;; TODO: Fix filepath absolute reference, right now all namespaces must be loaded to the REPL beforehand
+    ;; TODO: Find-out how to read clj files from the classpath (including JARs)
     (when-let [stream (FileInputStream. filepath)]
       (with-open [reader (LineNumberReader. (InputStreamReader. stream))]
         (dotimes [_ (dec (:line (meta v)))] (.readLine reader))
@@ -32,9 +32,9 @@
   (cond
     (symbol? expr)
     (when-let [v (ns-resolve ns expr)]
-      (when (and (not (= (utils/namespaced v) node))
-                 (utils/matches-namespace? filter v))
-        (state/register-child! node v)))
+      (when (and (not (utils/self? v node))
+                 (utils/matches-filter? v filter))
+        (state/register-child! v node)))
 
     (seqable? expr)
     (doseq [s* expr]
@@ -45,9 +45,9 @@
   [level node ns source filter]
   (state/register-node! node level)
   (expression->children node ns source filter)
-  (when-let [children (state/children node)]
+  (when-let [children (map :var (state/children node))]
     (doseq [child children]
-      (traverse-call-tree (inc level) (utils/namespaced child) (utils/var->namespace child) (repl/source-fn 'child) filter))))
+      (traverse-call-tree (inc level) (utils/namespaced child) (utils/var->namespace child) (extract-source child) filter))))
 
 (defmacro deftraced
   "Replacement for defn, but annotates the static call stack from this fn
@@ -58,7 +58,7 @@
   metadata map.
 
   e.g.:
-  (deftrace ^{:namespace \"clj-stack.core\"} my-fn [args]
+  (deftraced ^{:namespace \"clj-stack.core\"} my-fn [args]
     (do-something args))
   "
   [fn-name & fn-decl]

@@ -1,4 +1,5 @@
-(ns clj-stack.state)
+(ns clj-stack.state
+  (:require [clj-stack.utils :as utils]))
 
 (def ^:dynamic *stack* (atom {}))
 
@@ -8,6 +9,10 @@
    :output   nil
    :throw    nil
    :level    level})
+
+(defn ^:private new-child [var]
+  {:name (utils/namespaced var)
+   :var  var})
 
 (defn clear-stack! []
   (reset! *stack* {}))
@@ -25,14 +30,19 @@
   (->> (stack)
        vals
        (map :children)
-       flatten))
+       flatten
+       (map :var)))
+
+(defn find-level [level]
+  (->> (stack)
+       (filter (fn [[k v]] (= level (:level v))))))
 
 (defn register-node! [node level]
   (swap! *stack* assoc-in [node] (new-node level)))
 
 (defn register-child!
-  [node var-name]
-  (swap! *stack* update-in [node :children] conj var-name))
+  [var node]
+  (swap! *stack* update-in [node :children] conj (new-child var)))
 
 (defn register-input! [node args]
   (swap! *stack* update node assoc :input args))

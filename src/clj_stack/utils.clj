@@ -11,7 +11,7 @@
   ([ns s]
    (keyword (str ns) (str s))))
 
-(defn matches-namespace? [ns var]
+(defn matches-filter? [var ns]
   (some? (re-find (re-pattern (str "^" ns))
                   (-> var meta :ns str))))
 
@@ -20,3 +20,6 @@
      (println "Tapping =>" '~v)
      (clojure.pprint/pprint ~v)
      ~v))
+
+(defn self? [var node]
+  (= (namespaced var) node))
