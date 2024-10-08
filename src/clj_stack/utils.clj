@@ -26,3 +26,8 @@
 
 (defn schema? [v]
   (contains? (meta (var-get v)) :skeleton))
+
+(defn load-namespace [var]
+  (try
+    (load-file (str "src/" (-> var meta :file)))
+    (catch Exception _e)))

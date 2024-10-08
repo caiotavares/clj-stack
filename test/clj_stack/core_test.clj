@@ -1,7 +1,6 @@
 (ns clj-stack.core-test
   (:require [clj-stack.core :refer [deftraced]]
             [clj-stack.fixtures.layer-1 :as fixtures.layer-1]
-            [clj-stack.state :as state]
             [clojure.test :refer :all]))
 
 (deftraced entrypoint [args]

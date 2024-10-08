@@ -11,7 +11,6 @@
   "Based on clojure.repl/source-fn and modified to provide a reader unnatached from the RT (which doesn't work for some reason)"
   [v]
   (when-let [^String filepath (:file (meta v))]
-    ;; TODO: Fix filepath absolute reference, right now all namespaces must be loaded to the REPL beforehand
     ;; TODO: Find-out how to read clj files from the classpath (including JARs)
     (when-let [stream (FileInputStream. filepath)]
       (with-open [reader (LineNumberReader. (InputStreamReader. stream))]
@@ -31,15 +30,13 @@
   [node ns expr filter]
   (cond
     (symbol? expr)
-    (when-let [v (ns-resolve ns expr)]
+    (when-let [var (ns-resolve ns expr)]
       (cond
-        (utils/schema? v)
-        ()
-
-        (and (fn? (var-get v))
-             (not (utils/self? v node))
-             (utils/matches-filter? v filter))
-        (state/register-child! v node)))
+        (and (not (class? var))
+             (not (utils/self? var node))
+             (fn? (var-get var))
+             (utils/matches-filter? var filter))
+        (state/register-child! var node)))
 
     (seqable? expr)
     (doseq [s* expr]
@@ -52,6 +49,7 @@
   (expression->children node ns source filter)
   (when-let [children (map :var (state/children node))]
     (doseq [child children]
+      (utils/load-namespace child)
       (traverse-call-tree (inc level) (utils/namespaced child) (utils/var->namespace child) (extract-source child) filter))))
 
 (defmacro deftraced
@@ -81,12 +79,13 @@
            (tracing/traced! '~fn-name f# args#))))))
 
 (defn expand-calls
-  "Expands call stack for a given Var"
-  [^Var v]
+  "Expands static call stack for a given Var"
+  [^Var var]
   (state/clear-stack!)
-  (let [level  0
-        ns     (-> v meta :ns)
-        schema (-> v meta :schema)
-        filter (-> ns str (str/split #"\.") first)]
-    (traverse-call-tree level (utils/namespaced v) ns (extract-source v) filter)
+  (let [level   0
+        ns      (-> var meta :ns)
+        _schema (-> var meta :schema)
+        filter  (-> ns str (str/split #"\.") first)]
+    (utils/load-namespace var)
+    (traverse-call-tree level (utils/namespaced var) ns (extract-source var) filter)
     @state/*stack*))
