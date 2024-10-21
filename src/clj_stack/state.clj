@@ -2,6 +2,7 @@
   (:require [clj-stack.utils :as utils]))
 
 (def ^:dynamic *stack* (atom {}))
+(def call-counter (atom 0))
 
 (defn ^:private new-node [level]
   {:children '()
@@ -16,7 +17,8 @@
    :var  var})
 
 (defn clear-stack! []
-  (reset! *stack* {}))
+  (reset! *stack* {})
+  (reset! call-counter 0))
 
 (defn ^:private stack []
   (deref *stack*))
@@ -50,7 +52,9 @@
   (swap! *stack* update node assoc :schema schema))
 
 (defn register-input! [node args]
-  (swap! *stack* update node assoc :input args))
+  (swap! call-counter inc)
+  (swap! *stack* update node assoc :input args)
+  (swap! *stack* update node assoc :counter @call-counter))
 
 (defn register-output! [node result]
   (swap! *stack* update node assoc :output result))
