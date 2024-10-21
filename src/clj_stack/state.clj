@@ -2,6 +2,7 @@
   (:require [clj-stack.utils :as utils]))
 
 (def ^:dynamic *stack* (atom {}))
+(def ^:dynamic *sequential-stack* (atom {}))
 
 (defn ^:private new-node [level]
   {:children '()
@@ -18,7 +19,7 @@
 (defn clear-stack! []
   (reset! *stack* {}))
 
-(defn ^:private stack []
+(defn stack []
   (deref *stack*))
 
 (defn children [node]
@@ -26,6 +27,14 @@
       node
       :children
       seq))
+
+(defn children-name [node]
+  (->> (children node)
+       (map #(select-keys % [:name]))))
+
+(defn children-map [node]
+  (->> (children-name node)
+       (reduce (fn [acc {:keys [name]}] (assoc acc name {:children {}})) {})))
 
 (defn flat-children []
   (->> (stack)
@@ -71,3 +80,18 @@
 (defn register-exception! [node ex]
   (let [exception-data (ex-data ex)]
     (swap! *stack* update node assoc :throw exception-data)))
+
+(defn ^:private render-children [children path]
+  (utils/tap path)
+  (doseq [{name :name} children]
+    (let [new-path (conj path name :children)]
+      (if-let [next (children-name name)]
+        (do (swap! *sequential-stack* assoc-in new-path (children-map name))
+            (render-children next new-path))
+        (swap! *sequential-stack* update-in new-path {:name name :children {}})))))
+
+(defn render-sequential-stack []
+  (let [root     (root)
+        children (children-name root)]
+    (reset! *sequential-stack* {root {:name root :children (children-map root)}})
+    (render-children children [root :children])))
