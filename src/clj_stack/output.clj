@@ -1,12 +1,9 @@
 (ns clj-stack.output
   (:require [clj-stack.state :as state]
-            [clj-stack.utils :as utils]))
+            [clojure.data.json :as json]))
 
-(defn ->file [file])
-
-(defn state->d3 [])
-
-
-
-(render-stack)
+(defn ->file [file]
+  (spit "/tmp/stack.json"
+   (json/write-str
+     (state/render-sequential-stack))))
 

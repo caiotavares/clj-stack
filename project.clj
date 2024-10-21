@@ -5,6 +5,7 @@
             :url  "https://www.eclipse.org/legal/epl-2.0/"}
   :dependencies [[org.clojure/clojure "1.11.1"]
                  [org.clojure/tools.trace "0.7.11"]
+                 [org.clojure/data.json "2.5.0"]
                  [criterium "0.4.6"]]
   :plugins [[lein-cloverage "1.0.13"]
             [lein-shell "0.5.0"]

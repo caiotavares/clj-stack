@@ -57,7 +57,7 @@
   (->> (stack)
        (filter (fn [[k v]] (= level (:level v))))))
 
-(defn root []
+(defn find-root []
   (key (first (find-level 0))))
 
 (defn register-node! [node level]
@@ -82,16 +82,16 @@
     (swap! *stack* update node assoc :throw exception-data)))
 
 (defn ^:private render-children [children path]
-  (utils/tap path)
   (doseq [{name :name} children]
-    (let [new-path (conj path name :children)]
+    (let [new-path (conj path name)]
       (if-let [next (children-name name)]
-        (do (swap! *sequential-stack* assoc-in new-path (children-map name))
-            (render-children next new-path))
+        (do (swap! *sequential-stack* assoc-in new-path {:name name :children (children-map name)})
+            (render-children next (conj new-path :children)))
         (swap! *sequential-stack* update-in new-path {:name name :children {}})))))
 
 (defn render-sequential-stack []
-  (let [root     (root)
+  (let [root     (find-root)
         children (children-name root)]
     (reset! *sequential-stack* {root {:name root :children (children-map root)}})
-    (render-children children [root :children])))
+    (render-children children [root :children])
+    @*sequential-stack*))
