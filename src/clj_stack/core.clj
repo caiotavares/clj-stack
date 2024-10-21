@@ -10,6 +10,7 @@
 (defn ^:private extract-source
   "Based on clojure.repl/source-fn and modified to provide a reader unnatached from the RT (which doesn't work for some reason)"
   [v]
+  (utils/load-namespace v)
   (when-let [^String filepath (:file (meta v))]
     ;; TODO: Find-out how to read clj files from the classpath (including JARs)
     (when-let [stream (FileInputStream. filepath)]
@@ -25,18 +26,19 @@
             (read {} (PushbackReader. pbr)))
           (read-string (str text)))))))
 
+(defn ^:private handle-symbol [expr ns node filter]
+  (when-let [var (ns-resolve ns expr)]
+    (when (and (utils/function? var)
+               (not (utils/self? var node))
+               (utils/matches-filter? var filter))
+      (state/register-child! var node))))
+
 (defn ^:private expression->children
   "Extracts called symbols from a fn definition sexp"
   [node ns expr filter]
   (cond
     (symbol? expr)
-    (when-let [var (ns-resolve ns expr)]
-      (cond
-        (and (not (class? var))
-             (not (utils/self? var node))
-             (fn? (var-get var))
-             (utils/matches-filter? var filter))
-        (state/register-child! var node)))
+    (handle-symbol expr ns node filter)
 
     (seqable? expr)
     (doseq [s* expr]
@@ -49,7 +51,6 @@
   (expression->children node ns source filter)
   (when-let [children (map :var (state/children node))]
     (doseq [child children]
-      (utils/load-namespace child)
       (traverse-call-tree (inc level) (utils/namespaced child) (utils/var->namespace child) (extract-source child) filter))))
 
 (defmacro deftraced
@@ -86,6 +87,5 @@
         ns      (-> var meta :ns)
         _schema (-> var meta :schema)
         filter  (-> ns str (str/split #"\.") first)]
-    (utils/load-namespace var)
     (traverse-call-tree level (utils/namespaced var) ns (extract-source var) filter)
     @state/*stack*))

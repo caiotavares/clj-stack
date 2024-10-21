@@ -28,6 +28,12 @@
   (contains? (meta (var-get v)) :skeleton))
 
 (defn load-namespace [var]
+  (doseq [path ["src/" "test/"]]
+    (try
+      (load-file (str path (-> var meta :file)))
+      (catch Exception _))))
+
+(defn function? [var]
   (try
-    (load-file (str "src/" (-> var meta :file)))
-    (catch Exception _e)))
+    (fn? (var-get var))
+    (catch Exception _)))
