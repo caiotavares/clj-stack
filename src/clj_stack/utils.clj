@@ -44,3 +44,8 @@
 
 (defn val-fn [f]
   (fn [[k v]] (f v)))
+
+(defn function? [var]
+  (try
+    (fn? (var-get var))
+    (catch Exception _)))
