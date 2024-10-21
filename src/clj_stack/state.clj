@@ -27,16 +27,29 @@
       :children
       seq))
 
-(defn flat-stack []
+(defn flat-children []
   (->> (stack)
        vals
        (map :children)
        flatten
        (map :var)))
 
+(defn linear-stack []
+  (->> (stack)
+       (map #())))
+
+(defn find-node [node]
+  (get (stack) node))
+
+(defn sorted-stack []
+  (sort-by (utils/val-fn #(:level %)) (stack)))
+
 (defn find-level [level]
   (->> (stack)
        (filter (fn [[k v]] (= level (:level v))))))
+
+(defn root []
+  (key (first (find-level 0))))
 
 (defn register-node! [node level]
   (swap! *stack* assoc-in [node] (new-node level)))

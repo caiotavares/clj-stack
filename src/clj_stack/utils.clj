@@ -28,6 +28,19 @@
   (contains? (meta (var-get v)) :skeleton))
 
 (defn load-namespace [var]
-  (try
-    (load-file (str "src/" (-> var meta :file)))
-    (catch Exception _e)))
+  (doseq [path ["src/" "test/"]]
+    (try
+      (load-file (str path (-> var meta :file)))
+      (catch Exception _e))))
+
+(defn find-first [pred list]
+  (first (filter pred list)))
+
+(defn map-vals [f list]
+  (map (fn [[k v]] (f v)) list))
+
+(defn map-keys [f list]
+  (map (fn [[k v]] (f k)) list))
+
+(defn val-fn [f]
+  (fn [[k v]] (f v)))

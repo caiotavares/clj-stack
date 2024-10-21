@@ -22,4 +22,4 @@
                        (traced! v % args))))
 
 (defn trace-stack []
-  (mapv trace-vars* (state/flat-stack)))
+  (mapv trace-vars* (state/flat-children)))
