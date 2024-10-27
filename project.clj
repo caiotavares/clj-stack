@@ -12,7 +12,8 @@
             [lein-ancient "0.6.15"]
             [lein-changelog "0.3.2"]]
   :target-path "target/%s"
-  :profiles {:dev {:dependencies [[org.clojure/clojure "1.10.0"]]}}
+  :profiles {:dev {:dependencies [[org.clojure/clojure "1.10.0"]]
+                   :run          (require '[clj-stack.utils :refer [tap]])}}
   :deploy-repositories [["releases" :clojars]]
   :release-tasks [["shell" "git" "diff" "--exit-code"]
                   ["change" "version" "leiningen.release/bump-version"]

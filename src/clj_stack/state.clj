@@ -2,7 +2,6 @@
   (:require [clj-stack.utils :as utils]))
 
 (def ^:dynamic *stack* (atom {}))
-(def ^:dynamic *sequential-stack* (atom {}))
 
 (defn ^:private new-node [level]
   {:children '()
@@ -28,24 +27,12 @@
       :children
       seq))
 
-(defn children-name [node]
-  (->> (children node)
-       (map #(select-keys % [:name]))))
-
-(defn children-map [node]
-  (->> (children-name node)
-       (reduce (fn [acc {:keys [name]}] (assoc acc name {:children {}})) {})))
-
 (defn flat-children []
   (->> (stack)
        vals
        (map :children)
        flatten
        (map :var)))
-
-(defn linear-stack []
-  (->> (stack)
-       (map #())))
 
 (defn find-node [node]
   (get (stack) node))
@@ -81,17 +68,17 @@
   (let [exception-data (ex-data ex)]
     (swap! *stack* update node assoc :throw exception-data)))
 
-(defn ^:private render-children [children path]
-  (doseq [{name :name} children]
-    (let [new-path (conj path name)]
-      (if-let [next (children-name name)]
-        (do (swap! *sequential-stack* assoc-in new-path {:name name :children (children-map name)})
-            (render-children next (conj new-path :children)))
-        (swap! *sequential-stack* update-in new-path {:name name :children {}})))))
+(defn ^:private expand-children [current]
+  (map (fn [{:keys [name] :as child}]
+         (if-let [new-children (children name)]
+           (let [updated-map (select-keys (assoc child :children new-children) [:name :children])]
+             (update-in updated-map [:children] expand-children))
+           (select-keys (assoc child :children []) [:name :children])))
+       current))
 
 (defn render-sequential-stack []
-  (let [root     (find-root)
-        children (children-name root)]
-    (reset! *sequential-stack* {root {:name root :children (children-map root)}})
-    (render-children children [root :children])
-    @*sequential-stack*))
+  (let [root (find-root)]
+    (-> (update-in (stack) [root :children] expand-children)
+        (get root)
+        (assoc :name root)
+        (select-keys [:name :children]))))
