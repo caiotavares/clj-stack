@@ -13,6 +13,9 @@
 
 (entrypoint 1)
 
+(state/stack)
+(state/sequential-stack {:filter-keys [:name :children :level]})
+
 (output/->file)
 
-(state/render-sequential-stack)
+(state/sequential-stack)

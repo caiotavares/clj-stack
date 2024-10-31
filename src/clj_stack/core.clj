@@ -49,7 +49,7 @@
   [level node ns source filter]
   (state/register-node! node level)
   (expression->children node ns source filter)
-  (when-let [children (map :var (state/children node))]
+  (when-let [children (map :var (state/list-children node))]
     (doseq [child children]
       (traverse-call-tree (inc level) (utils/namespaced child) (utils/var->namespace child) (extract-source child) filter))))
 

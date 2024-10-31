@@ -21,7 +21,7 @@
 (defn stack []
   (deref *stack*))
 
-(defn children [node]
+(defn list-children [node]
   (-> (stack)
       node
       :children
@@ -33,9 +33,6 @@
        (map :children)
        flatten
        (map :var)))
-
-(defn find-node [node]
-  (get (stack) node))
 
 (defn sorted-stack []
   (sort-by (utils/val-fn #(:level %)) (stack)))
@@ -68,17 +65,23 @@
   (let [exception-data (ex-data ex)]
     (swap! *stack* update node assoc :throw exception-data)))
 
-(defn ^:private expand-children [current]
+(defn ^:private expand-children [current filter-keys]
   (map (fn [{:keys [name] :as child}]
-         (if-let [new-children (children name)]
-           (let [updated-map (select-keys (assoc child :children new-children) [:name :children])]
-             (update-in updated-map [:children] expand-children))
-           (select-keys (assoc child :children []) [:name :children])))
+         (if-let [children (list-children name)]
+           (-> child
+               (assoc :children children)
+               (select-keys filter-keys)
+               (update-in [:children] expand-children filter-keys))
+           (-> child
+               (assoc :children [])
+               (select-keys filter-keys))))
        current))
 
-(defn render-sequential-stack []
-  (let [root (find-root)]
-    (-> (update-in (stack) [root :children] expand-children)
-        (get root)
-        (assoc :name root)
-        (select-keys [:name :children]))))
+(defn sequential-stack
+  ([] (sequential-stack {:filter-keys [:name :children]}))
+  ([{:keys [filter-keys] :as _options}]
+   (let [root (find-root)]
+     (-> (update-in (stack) [root :children] expand-children filter-keys)
+         (get root)
+         (assoc :name root)
+         (select-keys filter-keys)))))

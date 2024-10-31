@@ -4,5 +4,5 @@
 
 (defn ->file []
   (spit "/tmp/stack.json"
-   (json/write-str
-     (state/render-sequential-stack))))
+        (json/write-str
+          (state/sequential-stack))))

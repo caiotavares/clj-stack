@@ -4,7 +4,7 @@
   (:import (clojure.lang ExceptionInfo)))
 
 (defn traced!
-  "Register In/Out for this fn in the call tree and prints to stdout"
+  "Register all inputs and outputs of this fn in the call tree"
   [fn-name fn args]
   (let [var-name (if (symbol? fn-name) (resolve fn-name) fn-name)
         node     (utils/namespaced var-name)]
