@@ -2,8 +2,7 @@
   (:require [clj-stack.state :as state]
             [clojure.data.json :as json]))
 
-(defn ->file [file]
+(defn ->file []
   (spit "/tmp/stack.json"
    (json/write-str
      (state/render-sequential-stack))))
-

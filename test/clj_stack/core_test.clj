@@ -1,6 +1,7 @@
 (ns clj-stack.core-test
   (:require [clj-stack.core :refer [deftraced]]
             [clj-stack.fixtures.layer-1 :as fixtures.layer-1]
+            [clj-stack.output :as output]
             [clj-stack.state :as state]
             [clojure.test :refer :all]))
 
@@ -11,5 +12,7 @@
   {:status 200 :body args})
 
 (entrypoint 1)
+
+(output/->file)
 
 (state/render-sequential-stack)
