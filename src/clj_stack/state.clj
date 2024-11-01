@@ -44,6 +44,9 @@
 (defn find-root []
   (key (first (find-level 0))))
 
+(defn find-node [node]
+  (get (stack) node))
+
 (defn register-node! [node level]
   (swap! *stack* assoc-in [node] (new-node level)))
 
@@ -69,16 +72,18 @@
   (map (fn [{:keys [name] :as child}]
          (if-let [children (list-children name)]
            (-> child
+               (merge (find-node name))
                (assoc :children children)
                (select-keys filter-keys)
                (update-in [:children] expand-children filter-keys))
            (-> child
+               (merge (find-node name))
                (assoc :children [])
                (select-keys filter-keys))))
        current))
 
 (defn sequential-stack
-  ([] (sequential-stack {:filter-keys [:name :children]}))
+  ([] (sequential-stack {:filter-keys [:name :children :input :output]}))
   ([{:keys [filter-keys] :as _options}]
    (let [root (find-root)]
      (-> (update-in (stack) [root :children] expand-children filter-keys)
