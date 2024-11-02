@@ -1,5 +1,5 @@
-(ns clj-stack.fixtures.layer-1
-  (:require [clj-stack.fixtures.layer-2 :as layer-2]))
+(ns flux.fixtures.layer-1
+  (:require [flux.fixtures.layer-2 :as layer-2]))
 
 (defn L1F1 [arg]
   (when (> arg 10)

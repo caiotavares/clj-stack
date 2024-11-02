@@ -1,8 +1,8 @@
-(ns clj-stack.core-test
-  (:require [clj-stack.core :refer [deftraced]]
-            [clj-stack.fixtures.layer-1 :as fixtures.layer-1]
-            [clj-stack.output :as output]
-            [clj-stack.state :as state]
+(ns flux.core-test
+  (:require [flux.core :refer [deftraced]]
+            [flux.fixtures.layer-1 :as fixtures.layer-1]
+            [flux.output :as output]
+            [flux.state :as state]
             [clojure.test :refer :all]))
 
 (deftraced entrypoint [args]

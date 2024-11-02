@@ -1,7 +1,7 @@
-(ns clj-stack.core
-  (:require [clj-stack.state :as state]
-            [clj-stack.tracing :as tracing]
-            [clj-stack.utils :as utils]
+(ns flux.core
+  (:require [flux.state :as state]
+            [flux.tracing :as tracing]
+            [flux.utils :as utils]
             [clojure.string :as str]
             [clojure.tools.trace])
   (:import (clojure.lang Var)
@@ -62,7 +62,7 @@
   metadata map.
 
   e.g.:
-  (deftraced ^{:namespace \"clj-stack.core\"} my-fn [args]
+  (deftraced ^{:namespace \"flux.core\"} my-fn [args]
     (do-something args))
   "
   [fn-name & fn-decl]

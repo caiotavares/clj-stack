@@ -1,4 +1,4 @@
-# clj-stack
+# flux
 
 FIXME: description
 
@@ -10,7 +10,7 @@ Download from http://example.com/FIXME.
 
 FIXME: explanation
 
-    $ java -jar clj-stack-0.1.0-standalone.jar [args]
+    $ java -jar flux-0.1.0-standalone.jar [args]
 
 ## Options
 

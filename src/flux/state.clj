@@ -1,5 +1,5 @@
-(ns clj-stack.state
-  (:require [clj-stack.utils :as utils]))
+(ns flux.state
+  (:require [flux.utils :as utils]))
 
 (def ^:dynamic *stack* (atom {}))
 

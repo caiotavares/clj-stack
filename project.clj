@@ -1,4 +1,4 @@
-(defproject org.clojars.caiotavares/clj-stack "0.1.0-SNAPSHOT"
+(defproject org.clojars.caiotavares/flux "0.1.0-SNAPSHOT"
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
   :license {:name "EPL-2.0 OR GPL-2.0-or-later WITH Classpath-exception-2.0"
@@ -13,7 +13,7 @@
             [lein-changelog "0.3.2"]]
   :target-path "target/%s"
   :profiles {:dev {:dependencies [[org.clojure/clojure "1.10.0"]]
-                   :run          (require '[clj-stack.utils :refer [tap]])}}
+                   :run          (require '[flux.utils :refer [tap]])}}
   :deploy-repositories [["releases" :clojars]]
   :release-tasks [["shell" "git" "diff" "--exit-code"]
                   ["change" "version" "leiningen.release/bump-version"]

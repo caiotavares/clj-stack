@@ -1,6 +1,6 @@
-(ns clj-stack.tracing
-  (:require [clj-stack.state :as state]
-            [clj-stack.utils :as utils])
+(ns flux.tracing
+  (:require [flux.state :as state]
+            [flux.utils :as utils])
   (:import (clojure.lang ExceptionInfo)))
 
 (defn traced!

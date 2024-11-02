@@ -1,4 +1,4 @@
-(ns clj-stack.fixtures.layer-3)
+(ns flux.fixtures.layer-3)
 
 (defn L3F1 [args]
   "deu bom")

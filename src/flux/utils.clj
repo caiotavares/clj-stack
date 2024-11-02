@@ -1,4 +1,4 @@
-(ns clj-stack.utils
+(ns flux.utils
   (:import (clojure.lang Var)))
 
 (defn var->namespace [v]

@@ -1,4 +1,4 @@
-(ns clj-stack.print)
+(ns flux.print)
 
 (def regular "\033[0m")
 (def green "\033[38;2;106;168;79;1;m")
