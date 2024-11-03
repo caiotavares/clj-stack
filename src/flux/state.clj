@@ -1,5 +1,6 @@
 (ns flux.state
-  (:require [flux.utils :as utils]))
+  (:require [flux.utils :as utils]
+            [flux.file :as file]))
 
 (def ^:dynamic *stack* (atom {}))
 

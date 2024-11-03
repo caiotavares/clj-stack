@@ -1,6 +1,5 @@
 (ns flux.file
   (:require [clojure.data.json :as json]
-            [flux.state :as state]
             [flux.utils :as utils])
   (:import (java.io FileInputStream InputStreamReader LineNumberReader PushbackReader)))
 
@@ -23,7 +22,5 @@
             (read {} (PushbackReader. pbr)))
           (read-string (str text)))))))
 
-(defn ->file []
-  (spit "/tmp/stack.json"
-        (json/write-str
-          (state/tree-stack {}))))
+(defn ->file [stack]
+  (spit ".flux_stack" (json/write-str stack) :append false))

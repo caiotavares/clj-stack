@@ -22,6 +22,10 @@
 (defn print-stack [options]
   (pprint/pprint (get-stack options)))
 
+;; TODO: Figure out the best place to put this
+(defn save-stack [options]
+  (file/->file (get-stack options)))
+
 (defn expand-stack
   "Expands static call stack for a given Var, works similar to deftraced by without
   redefining the root fn.
@@ -46,6 +50,7 @@
      (when trace?
        (tracing/trace-var* f)
        (tracing/trace-stack))
+     (save-stack options)
      (get-stack (if trace? options (merge options {:filter-keys [:name :children]}))))))
 
 (defn trace-stack
@@ -58,6 +63,7 @@
      (core/traverse-call-tree level (utils/namespaced f) ns (file/read-source f) ns-filter)
      (tracing/trace-var* f)
      (tracing/trace-stack)
+     (save-stack options)
      nil)))
 
 (defmacro deftraced
@@ -86,11 +92,11 @@
     (when trace? (tracing/trace-stack))
     `(do
        (declare ~fn-name)
-       (let [f#   (fn ~@fn-form)
-             res# (gensym)]
+       (let [f# (fn ~@fn-form)]
          (defn ^:dynamic ~fn-name ~doc-string [& args#]
            (let [res# (if ~trace?
                         (tracing/traced! '~fn-name f# args#)
                         (apply f# args#))]
              (when ~print? (print-stack ~options))
+             (save-stack ~options)
              res#))))))
