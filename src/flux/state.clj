@@ -8,7 +8,6 @@
    :input    nil
    :output   nil
    :throw    nil
-   :schema   nil
    :level    level})
 
 (defn ^:private new-child [var]
@@ -18,34 +17,34 @@
 (defn clear-stack! []
   (reset! *stack* {}))
 
-(defn stack []
+(defn flat-stack []
   (deref *stack*))
 
 (defn list-children [node]
-  (-> (stack)
+  (-> (flat-stack)
       node
       :children
       seq))
 
 (defn flat-children []
-  (->> (stack)
+  (->> (flat-stack)
        vals
        (map :children)
        flatten
        (map :var)))
 
 (defn sorted-stack []
-  (sort-by (utils/val-fn #(:level %)) (stack)))
+  (sort-by (utils/val-fn #(:level %)) (flat-stack)))
 
 (defn find-level [level]
-  (->> (stack)
+  (->> (flat-stack)
        (filter (fn [[k v]] (= level (:level v))))))
 
 (defn find-root []
   (key (first (find-level 0))))
 
 (defn find-node [node]
-  (get (stack) node))
+  (get (flat-stack) node))
 
 (defn register-node! [node level]
   (swap! *stack* assoc-in [node] (new-node level)))
@@ -53,10 +52,6 @@
 (defn register-child!
   [var node]
   (swap! *stack* update-in [node :children] conj (new-child var)))
-
-(defn register-schema!
-  [schema node]
-  (swap! *stack* update node assoc :schema schema))
 
 (defn register-input! [node args]
   (swap! *stack* update node assoc :input args))
@@ -82,11 +77,10 @@
                (select-keys filter-keys))))
        current))
 
-(defn sequential-stack
-  ([] (sequential-stack {:filter-keys [:name :children :input :output]}))
-  ([{:keys [filter-keys] :as _options}]
-   (let [root (find-root)]
-     (-> (update-in (stack) [root :children] expand-children filter-keys)
-         (get root)
-         (assoc :name root)
-         (select-keys filter-keys)))))
+(defn tree-stack
+  [{:keys [filter-keys] :as _options}]
+  (let [root (find-root)]
+    (-> (update-in (flat-stack) [root :children] expand-children filter-keys)
+        (get root)
+        (assoc :name root)
+        (select-keys filter-keys))))

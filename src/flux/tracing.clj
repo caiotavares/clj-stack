@@ -17,9 +17,8 @@
         (state/register-exception! node e)
         (throw e)))))
 
-(defn ^:private trace-vars* [v]
-  (alter-var-root v #(fn tracing-wrapper [& args]
-                       (traced! v % args))))
+(defn trace-var* [v]
+  (alter-var-root v #(fn tracing-wrapper [& args] (traced! v % args))))
 
 (defn trace-stack []
-  (mapv trace-vars* (state/flat-children)))
+  (mapv trace-var* (state/flat-children)))
